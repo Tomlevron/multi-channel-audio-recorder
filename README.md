@@ -21,12 +21,12 @@ Welcome to the PyAudio Multi-Channel Recorder repository. This utility is design
 - argparse
 
 ## Installation
-1. 
+1. Clone the repository:
 ```
 git clone https://github.com/Tomlevron/multi-channel-audio-recorder.git
 cd multi-channel-audio-recorder
 ```
-2. Install requirements
+2. Install requirements:
 ```
 pip install -r requirements.txt
 ```
