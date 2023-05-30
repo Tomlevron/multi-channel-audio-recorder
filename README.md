@@ -32,14 +32,14 @@ python audio_recorder.py --main_dir data --backup_dir backup --recording_unit mi
 
 The command-line arguments are:
 
---main_dir: Set the primary directory for audio file storage.
---backup_dir: Designate a backup directory for the storage of audio file copies.
---recording_unit: Specify the unit of recording time (seconds, minutes, or hours).
---recording_time: Define the total time duration for which you wish to record.
---recording_length: Specify the duration of each individual recording in seconds.
---channels_names: Provide a list of the names of the channels being recorded. These names will influence the filenames of the generated .wav files.
---channels: Specify the number of audio channels to record.
---suffix: Specify the suffix to append to the filename of the recordings.
+- --main_dir: Set the primary directory for audio file storage.
+- --backup_dir: Designate a backup directory for the storage of audio file copies.
+- --recording_unit: Specify the unit of recording time (seconds, minutes, or hours).
+- --recording_time: Define the total time duration for which you wish to record.
+- --recording_length: Specify the duration of each individual recording in seconds.
+- --channels_names: Provide a list of the names of the channels being recorded. These names will influence the filenames of the generated .wav files.
+- --channels: Specify the number of audio channels to record.
+- --suffix: Specify the suffix to append to the filename of the recordings.
 
 3. Execute the script. You will be prompted to select an input device from a list printed in the console.
 4. The script will record audio for the specified duration, and subsequently, save the audio data as .wav files in the designated primary and backup directories.
