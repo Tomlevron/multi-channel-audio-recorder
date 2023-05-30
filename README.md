@@ -45,7 +45,7 @@ The command-line arguments are:
 
 - --main_dir: Set the primary directory for audio file storage.
 - --backup_dir: Backup directory for the storage of audio file copies.
-- --recording_unit: Specify the unit of recording time (seconds, minutes, or hours).
+- --recording_unit: Specify the unit of recording time (the options are `seconds`, `minutes`, or `hours`).
 - --recording_time: Define the total time duration for which you wish to record.
 - --recording_length: Specify the duration of each individual recording in seconds.
 - --channels_names: Provide a list of the names of the channels being recorded. These names will influence the filenames of the generated .wav files.
@@ -58,7 +58,7 @@ The command-line arguments are:
 ## To do
 - [x] Add Code comments and docstrings
 - [x] Add installation instructions
-- [ ] Explain what can be dont with it
+- [ ] Explain what can be done with it
 - [ ] Add unit tests to ensure the functionality of the code.
 - [ ] Add an example section demonstrating different usage scenarios
 - [ ] Incorporate logging to track the progress and errors during recording.
