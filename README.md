@@ -46,10 +46,16 @@ The command-line arguments are:
 3. Execute the script. You will be prompted to select an input device from a list printed in the console.
 4. The script will record audio for the specified duration, and subsequently, save the audio data as .wav files in the designated primary and backup directories.
 
+## To do
+- [] Add Code comments
+- [] Add unit tests to ensure the functionality of the code.
+- [] Add an example section demonstrating different usage scenarios
+- [] Incorporate logging to track the progress and errors during recording.
+- [] Provide detailed documentation on the usage of the command-line interface.
 ## Contact
 
 If you have any questions, suggestions, or feedback regarding this project, please feel free to reach out to me. You can contact me at:
 
 - Name: Tom Lev-ron
 - Email: tomseaherb@gmail.com
-- LinkedIn: https://www.linkedin.com/in/tomlev-ron/
+- LinkedIn: [Tom](https://www.linkedin.com/in/tomlev-ron/)
