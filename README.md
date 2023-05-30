@@ -26,7 +26,8 @@ Welcome to the PyAudio Multi-Channel Recorder repository. This utility is design
 git clone https://github.com/Tomlevron/multi-channel-audio-recorder.git
 cd multi-channel-audio-recorder
 ```
-2. ```
+2. Install requirements
+```
 pip install -r requirements.txt
 ```
 Note: You might need to use pip3 instead of pip and add --user after install if you encounter permission issues.
