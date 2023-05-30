@@ -2,6 +2,8 @@
 
 The provided repository is a an audio recording utility, designed to record audio from multiple channels simultaneously, leveraging the PyAudio library. The tool offers features such as saving backup recordings, user-defined recording durations, and command-line interface for customizing various parameters.
 
+One can choose the length of the total recording time and break the total time into a few recordings
+
 ### Features
 
 - Detection and selection of the input device.
@@ -33,7 +35,7 @@ python audio_recorder.py --main_dir data --backup_dir backup --recording_unit mi
 The command-line arguments are:
 
 - --main_dir: Set the primary directory for audio file storage.
-- --backup_dir: Designate a backup directory for the storage of audio file copies.
+- --backup_dir: Backup directory for the storage of audio file copies.
 - --recording_unit: Specify the unit of recording time (seconds, minutes, or hours).
 - --recording_time: Define the total time duration for which you wish to record.
 - --recording_length: Specify the duration of each individual recording in seconds.
