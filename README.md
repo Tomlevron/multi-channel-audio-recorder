@@ -1,4 +1,4 @@
-# PyAudio Multi-Channel Recorder with Backup
+# PyAudio Multi-Channel Recorder
 
 The provided repository is a an audio recording utility, designed to record audio from multiple channels simultaneously, leveraging the PyAudio library. The tool offers features such as saving backup recordings, user-defined recording durations, and command-line interface for customizing various parameters.
 

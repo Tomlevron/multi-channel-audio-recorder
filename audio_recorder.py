@@ -7,7 +7,7 @@ import datetime
 import argparse
 
 class Recorder:
-    def __init__(self, sample_format=pyaudio.paInt16, channels=1, chunk=1024, choice=False, main_save_path=None, backup_path=None, suffix='_channel_'):
+    def __init__(self, sample_format=pyaudio.paInt16, channels=2, chunk=1024, choice=False, main_save_path=None, backup_path=None, suffix='_channel_'):
         self.sample_format = sample_format
         self.channels = channels
         self.chunk = chunk
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     print(dir_manager.main_save_path)  # Outputs the main directory path
     print(dir_manager.backup_path)  # Outputs the backup directory path
 
-    recorder = Recorder(args.channels, choice=True, main_save_path=dir_manager.main_save_path, backup_path=dir_manager.backup_path, suffix=args.suffix)
+    recorder = Recorder(channels=args.channels, choice=True, main_save_path=dir_manager.main_save_path, backup_path=dir_manager.backup_path, suffix=args.suffix)
     try:
         recorder.start_recording(args.recording_time, args.recording_length, channels_names, time_unit=args.recording_unit)
     except Exception as e:
