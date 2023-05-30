@@ -17,9 +17,9 @@ One can choose the length of the total recording time and break the total time i
 ### Requirements
 
 - Python 3.6 or above
-- numpy
+- numpy>=1.21.5
 - wave
-- pyaudio
+- pyaudio==0.2.11
 - argparse
 
 ### Usage
