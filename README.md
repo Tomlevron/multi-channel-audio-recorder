@@ -1,10 +1,8 @@
 # PyAudio Multi-Channel Recorder
 
-The provided repository is a an audio recording utility, designed to record audio from multiple channels simultaneously, leveraging the PyAudio library. The tool offers features such as saving backup recordings, user-defined recording durations, and command-line interface for customizing various parameters.
+Welcome to the PyAudio Multi-Channel Recorder repository. This utility is designed to record audio from multiple channels simultaneously using the PyAudio library. It comes with the ability to save backup recordings, define recording durations, and a command-line interface to customize various parameters. Moreover, you can break the total recording time into smaller recording durations.
 
-One can choose the length of the total recording time and break the total time into a few recordings
-
-### Features
+## Features
 
 - Detection and selection of the input device.
 - Audio recording in manageable chunks for a user-defined duration.
@@ -14,7 +12,7 @@ One can choose the length of the total recording time and break the total time i
 - Organization of files in date-specific folders within both primary and backup directories.
 - Command-line interface for customizing various parameters.
 
-### Requirements
+## Requirements
 
 - Python 3.6 or above
 - numpy>=1.21.5
@@ -22,7 +20,17 @@ One can choose the length of the total recording time and break the total time i
 - pyaudio==0.2.11
 - argparse
 
-### Usage
+## Installation
+1. 
+```
+git clone https://github.com/Tomlevron/multi-channel-audio-recorder.git
+cd multi-channel-audio-recorder
+```
+2. ```
+pip install -r requirements.txt
+```
+Note: You might need to use pip3 instead of pip and add --user after install if you encounter permission issues.
+## Usage
 
 1. Make sure all the dependencies are installed in your Python environment.
 
@@ -47,7 +55,9 @@ The command-line arguments are:
 4. The script will record audio for the specified duration, and subsequently, save the audio data as .wav files in the designated primary and backup directories.
 
 ## To do
-- [x] Add Code comments
+- [x] Add Code comments and docstrings
+- [x] Add installation instructions
+- [ ] Explain what can be dont with it
 - [ ] Add unit tests to ensure the functionality of the code.
 - [ ] Add an example section demonstrating different usage scenarios
 - [ ] Incorporate logging to track the progress and errors during recording.
