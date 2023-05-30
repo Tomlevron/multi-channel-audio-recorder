@@ -7,7 +7,45 @@ import datetime
 import argparse
 
 class Recorder:
+    """Audio recorder utility.
+
+    Args:
+        sample_format (int, optional): The sample format for audio recording. Defaults to pyaudio.paInt16.
+        channels (int, optional): The number of audio channels to record. Defaults to 2.
+        chunk (int, optional): The chunk size for audio recording. Defaults to 1024.
+        choice (bool, optional): Flag indicating whether to prompt for input device selection. Defaults to False.
+        main_save_path (str, optional): The main directory path for saving audio recordings. Defaults to None.
+        backup_path (str, optional): The backup directory path for saving audio recordings. Defaults to None.
+        suffix (str, optional): The suffix to append to the filename of the recordings. Defaults to '_channel_'.
+
+    Raises:
+        Exception: If the input device ID is invalid.
+
+    Attributes:
+        sample_format (int): The sample format for audio recording.
+        channels (int): The number of audio channels to record.
+        chunk (int): The chunk size for audio recording.
+        frames (list): A list to store audio frames for each channel.
+        p (pyaudio.PyAudio): The PyAudio instance.
+        choice (bool): Flag indicating whether to prompt for input device selection.
+        input_device_index (int): The index of the selected input device.
+        fs (int): The sample rate of the input device.
+        main_save_path (str): The main directory path for saving audio recordings.
+        backup_path (str): The backup directory path for saving audio recordings.
+        suffix (str): The suffix to append to the filename of the recordings.
+
+    Methods:
+        get_input_device_index(): Prompt the user to select an input device and return its index.
+        validate_device_index(index): Validate if the provided device index is valid.
+        get_device_sample_rate(): Get the sample rate of the selected input device.
+        record_audio(rec_length): Record audio for the specified length of time.
+        save_wav(filename, frames, date_as_string, time_as_string, directory_path): Save audio frames as a WAV file.
+        record_and_save(rec_length, rooms_names): Record audio and save the WAV files for each room.
+        start_recording(num_rec, recording_length, rooms_names, time_unit): Start recording audio for the specified duration.
+
+    """
     def __init__(self, sample_format=pyaudio.paInt16, channels=2, chunk=1024, choice=False, main_save_path=None, backup_path=None, suffix='_channel_'):
+        # Initialize 
         self.sample_format = sample_format
         self.channels = channels
         self.chunk = chunk
@@ -24,6 +62,15 @@ class Recorder:
         self.suffix = suffix  # Added suffix
         
     def get_input_device_index(self):
+        """Prompt the user to select an input device and return its index.
+
+        Returns:
+            int: The index of the selected input device.
+
+        Raises:
+            Exception: If no input devices are found or the selected device ID is invalid.
+
+        """
         valid_indexes = []
         for i in range(self.p.get_device_count()):
             device_info = self.p.get_device_info_by_index(i)
@@ -45,6 +92,15 @@ class Recorder:
             return valid_indexes[0]  # Return the first valid index
         
     def validate_device_index(self, index):
+        """Validate if the provided device index is valid.
+
+        Args:
+            index (int): The device index to validate.
+
+        Returns:
+            bool: True if the device index is valid, False otherwise.
+
+        """
         try:
             self.p.get_device_info_by_index(index)
             return True
@@ -58,6 +114,15 @@ class Recorder:
 
 
     def record_audio(self, rec_length):
+        """Record audio for the specified length of time.
+
+        Args:
+            rec_length (int): The length of time to record in seconds.
+
+        Raises:
+            Exception: If the number of channels is invalid.
+
+        """
         if self.channels < 1:
             raise Exception(f'Invalid number of channels: {self.channels}')
         print('Recording')
@@ -83,6 +148,16 @@ class Recorder:
 
 
     def save_wav(self, filename, frames, date_as_string, time_as_string, directory_path):
+        """Save audio frames as a WAV file.
+
+        Args:
+            filename (str): The base filename for the WAV file.
+            frames (list): The audio frames to be saved.
+            date_as_string (str): The current date as a string.
+            time_as_string (str): The current time as a string.
+            directory_path (str): The directory path for saving the WAV file.
+
+        """
         name_of_file = filename + time_as_string.replace('.', '') + '.wav'
         directory = directory_path + date_as_string
         if not os.path.isdir(directory):
@@ -98,6 +173,14 @@ class Recorder:
         wf.close()
 
     def record_and_save(self, rec_length, rooms_names):
+        """Record audio and save the WAV files for each room.
+
+        Args:
+            rec_length (int): The length of time to record in seconds.
+            rooms_names (list): The names of the rooms to record.
+
+        """
+
         self.record_audio(rec_length)
         current_time = str(time.time())
         date_today = datetime.datetime.now()
@@ -108,7 +191,15 @@ class Recorder:
             self.save_wav(name +  self.suffix, self.frames[i], date_str, current_time, self.backup_path)
         
     def start_recording(self, num_rec, recording_length, rooms_names, time_unit="seconds"):
-        # Convert num_rec to the appropriate time unit
+        """Start recording audio for the specified duration and convert num_rec to the appropriate time unit.
+
+        Args:
+            num_rec (int): The total number of recordings to perform.
+            recording_length (int): The length of each individual recording.
+            rooms_names (list): The names of the rooms to record.
+            time_unit (str): The unit of recording time (default: "seconds").
+
+        """
         if time_unit == "minutes":
             num_rec *= 60
         elif time_unit == "hours":
@@ -121,12 +212,36 @@ class Recorder:
         self.p.terminate()  # Terminate PyAudio session after loop
 
 class DirectoryManager:
+    """Utility class for managing directory paths.
+
+    Args:
+        main_dir (str, optional): The main directory name. Defaults to "data".
+        backup_dir (str, optional): The backup directory name. Defaults to "backup".
+
+    Attributes:
+        current_directory (str): The current working directory.
+        main_save_path (str): The full path to the main directory.
+        backup_path (str): The full path to the backup directory.
+
+    Methods:
+        construct_path(dir_name): Construct the full path for a directory.
+
+    """
     def __init__(self, main_dir="data", backup_dir="backup"):
         self.current_directory = os.getcwd()
         self.main_save_path = self.construct_path(main_dir)
         self.backup_path = self.construct_path(backup_dir)
 
     def construct_path(self, dir_name):
+        """Construct the full path for a directory.
+
+        Args:
+            dir_name (str): The name of the directory.
+
+        Returns:
+            str: The full path to the directory.
+
+        """
         return os.path.join(self.current_directory, dir_name, '')
     
 if __name__ == "__main__":
