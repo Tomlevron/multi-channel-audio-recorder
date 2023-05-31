@@ -1,4 +1,4 @@
-![DALL·E 2023-05-31 10 20 11 - No cable2](https://github.com/Tomlevron/multi-channel-audio-recorder/assets/54799120/49134df9-8b2f-4e9d-975e-3aae71a59bf3)
+![Git banner PyAudio Multi-Channel Recorder](https://github.com/Tomlevron/multi-channel-audio-recorder/assets/54799120/c2264de4-dc82-4eb6-af07-34d728ff7d03)
 
 # PyAudio Multi-Channel Recorder
 
