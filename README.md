@@ -3,15 +3,17 @@
 # PyAudio Multi-Channel Recorder
 
 Welcome to the PyAudio Multi-Channel Recorder repository. This utility is designed to record audio from multiple channels simultaneously using the PyAudio library. It comes with the ability to save backup recordings, define recording durations, and a command-line interface to customize various parameters. Moreover, you can break the total recording time into smaller recording durations.
-This simple code is versatile and can be used with different recorders connected to a computer via USB. In the past, I've personally used this with a ZOOM H5n recorder, which worked well.
+This simple code is versatile and can be used with different recorders connected to a computer via USB. In the past, I've personally used this with a ZOOM H4n recorder, which worked well.
+
 ## Features
 
-- Detection and selection of the input device.
+- Detection and selection of the input device (interactive prompt, or `--device-id` for scripted use).
 - Audio recording in manageable chunks for a user-defined duration.
 - Splitting of the incoming data into distinct channels.
+- 16-, 24-, or 32-bit recording at any sample rate the device supports.
+- Ctrl+C cleanly flushes the current segment to disk — partial recordings aren't lost.
 - Storing each channel's audio data in individual .wav files in a primary directory and a backup directory.
-- Comprehensive file naming based on the channel name, current time, and date.
-- Organization of files in date-specific folders within both primary and backup directories.
+- ISO-8601 timestamped filenames (millisecond precision), organised in date-named subfolders.
 - Command-line interface for customizing various parameters.
 
 ## Requirements
