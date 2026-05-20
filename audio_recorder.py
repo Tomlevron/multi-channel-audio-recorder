@@ -1,4 +1,5 @@
 import os
+import sys
 import wave
 import pyaudio
 import numpy as np
@@ -6,111 +7,93 @@ import time
 import datetime
 import argparse
 
+
+def list_input_devices():
+    """Print every input-capable device and its channel count, then return."""
+    p = pyaudio.PyAudio()
+    try:
+        found = False
+        for i in range(p.get_device_count()):
+            info = p.get_device_info_by_index(i)
+            if info["maxInputChannels"] > 0:
+                found = True
+                print(f"  id={i:>2}  channels={int(info['maxInputChannels']):>2}  "
+                      f"rate={int(info['defaultSampleRate'])}  name={info['name']}")
+        if not found:
+            print("No input-capable devices detected.")
+    finally:
+        p.terminate()
+
+
 class Recorder:
-    """Audio recorder utility.
+    """Records a multi-channel input stream and writes each channel to its own mono WAV file.
 
     Args:
-        sample_format (int, optional): The sample format for audio recording. Defaults to pyaudio.paInt16.
-        channels (int, optional): The number of audio channels to record. Defaults to 2.
-        chunk (int, optional): The chunk size for audio recording. Defaults to 1024.
-        choice (bool, optional): Flag indicating whether to prompt for input device selection. Defaults to False.
-        main_save_path (str, optional): The main directory path for saving audio recordings. Defaults to None.
-        backup_path (str, optional): The backup directory path for saving audio recordings. Defaults to None.
-        suffix (str, optional): The suffix to append to the filename of the recordings. Defaults to '_channel_'.
+        sample_format: PyAudio sample format. Defaults to pyaudio.paInt16.
+        channels: Number of audio channels to record. Must be <= the device's maxInputChannels.
+        chunk: Frames-per-buffer for the PyAudio stream read.
+        device_id: Input device index. If None, the user is prompted interactively.
+        main_save_path: Primary directory for saving WAV files.
+        backup_path: Backup directory; each recording is also written here.
+        suffix: Suffix appended after each channel name in the filename.
 
     Raises:
-        Exception: If the input device ID is invalid.
-
-    Attributes:
-        sample_format (int): The sample format for audio recording.
-        channels (int): The number of audio channels to record.
-        chunk (int): The chunk size for audio recording.
-        frames (list): A list to store audio frames for each channel.
-        p (pyaudio.PyAudio): The PyAudio instance.
-        choice (bool): Flag indicating whether to prompt for input device selection.
-        input_device_index (int): The index of the selected input device.
-        fs (int): The sample rate of the input device.
-        main_save_path (str): The main directory path for saving audio recordings.
-        backup_path (str): The backup directory path for saving audio recordings.
-        suffix (str): The suffix to append to the filename of the recordings.
-
-    Methods:
-        get_input_device_index(): Prompt the user to select an input device and return its index.
-        validate_device_index(index): Validate if the provided device index is valid.
-        get_device_sample_rate(): Get the sample rate of the selected input device.
-        record_audio(rec_length): Record audio for the specified length of time.
-        save_wav(filename, frames, date_as_string, time_as_string, directory_path): Save audio frames as a WAV file.
-        record_and_save(rec_length, rooms_names): Record audio and save the WAV files for each room.
-        start_recording(num_rec, recording_length, rooms_names, time_unit): Start recording audio for the specified duration.
-
+        ValueError: If device_id is invalid or supports fewer channels than requested.
+        RuntimeError: If no input devices are present (interactive path only).
     """
-    def __init__(self, sample_format=pyaudio.paInt16, channels=2, chunk=1024, choice=False, main_save_path=None, backup_path=None, suffix='_channel_'):
-        # Initialize 
+    def __init__(self, sample_format=pyaudio.paInt16, channels=2, chunk=1024, device_id=None, main_save_path=None, backup_path=None, suffix='_channel_'):
+        # Initialize
         self.sample_format = sample_format
         self.channels = channels
         self.chunk = chunk
         self.frames = [[] for _ in range(channels)]
         self.p = pyaudio.PyAudio()
-        self.choice = choice
-        self.input_device_index = self.get_input_device_index()
-        # Check if device index is valid
-        if not self.validate_device_index(self.input_device_index):
-            raise Exception(f'Invalid device ID: {self.input_device_index}')
-        self.fs = self.get_device_sample_rate()
+        if device_id is None:
+            self.input_device_index = self.prompt_for_input_device()
+        else:
+            self.input_device_index = device_id
+        # Check that the device exists and can supply the requested channel count.
+        device_info = self.get_device_info(self.input_device_index)
+        max_in = int(device_info["maxInputChannels"])
+        if max_in < self.channels:
+            raise ValueError(
+                f"Device id={self.input_device_index} ({device_info['name']}) "
+                f"supports max {max_in} input channels, but {self.channels} were requested. "
+                f"Run with --list-devices to see options."
+            )
+        self.fs = int(device_info["defaultSampleRate"])
+        print(f"Using device id={self.input_device_index} ({device_info['name']}) "
+              f"at {self.fs} Hz, {self.channels} channel(s).")
         self.main_save_path = main_save_path
         self.backup_path = backup_path
         self.suffix = suffix  # Added suffix
         
-    def get_input_device_index(self):
-        """Prompt the user to select an input device and return its index.
-
-        Returns:
-            int: The index of the selected input device.
-
-        Raises:
-            Exception: If no input devices are found or the selected device ID is invalid.
-
-        """
+    def prompt_for_input_device(self):
+        """List input devices and prompt the user to pick one. Returns the chosen device index."""
         valid_indexes = []
         for i in range(self.p.get_device_count()):
-            device_info = self.p.get_device_info_by_index(i)
-            if (device_info["maxInputChannels"]) > 0:
+            info = self.p.get_device_info_by_index(i)
+            if info["maxInputChannels"] > 0:
                 valid_indexes.append(i)
-                print("Input Device id ", i, " - ", device_info["name"])
-                print(f"Input Device id {i} - {device_info['name']} - Channels: {device_info['maxInputChannels']}")
+                print(f"  id={i:>2}  channels={int(info['maxInputChannels']):>2}  "
+                      f"rate={int(info['defaultSampleRate'])}  name={info['name']}")
 
         if not valid_indexes:
-            raise Exception('No device found')
-        
-        if self.choice:
-            while True:
-                choice = input("Enter the ID of the preferred input device: ")
-                if choice.isdigit() and int(choice) in valid_indexes:
-                    return int(choice)
-                print(f'Invalid device ID: {choice}. Please try again.')
-        else:
-            return valid_indexes[0]  # Return the first valid index
-        
-    def validate_device_index(self, index):
-        """Validate if the provided device index is valid.
+            raise RuntimeError("No input-capable audio devices found.")
 
-        Args:
-            index (int): The device index to validate.
+        while True:
+            choice = input("Enter the ID of the preferred input device: ")
+            if choice.isdigit() and int(choice) in valid_indexes:
+                return int(choice)
+            print(f"Invalid device ID: {choice}. Please try again.")
 
-        Returns:
-            bool: True if the device index is valid, False otherwise.
-
-        """
+    def get_device_info(self, index):
         try:
-            self.p.get_device_info_by_index(index)
-            return True
-        except Exception:
-            return False
-
-    def get_device_sample_rate(self):
-        device_info = self.p.get_device_info_by_index(self.input_device_index)
-        print(int(device_info['defaultSampleRate']))
-        return int(device_info['defaultSampleRate'])
+            return self.p.get_device_info_by_index(index)
+        except OSError as exc:
+            raise ValueError(
+                f"Invalid device id={index}. Run with --list-devices to see valid ids."
+            ) from exc
 
 
     def record_audio(self, rec_length):
@@ -245,35 +228,52 @@ class DirectoryManager:
         return os.path.join(self.current_directory, dir_name, '')
     
 if __name__ == "__main__":
-    # Set up argument parser
-    parser = argparse.ArgumentParser(description="Audio Recorder")
+    parser = argparse.ArgumentParser(description="Multi-channel audio recorder")
+    parser.add_argument('--list-devices', action='store_true',
+                        help='List input-capable audio devices and exit.')
+    parser.add_argument('--device-id', type=int, default=None,
+                        help='Input device id to record from. If omitted, you will be prompted.')
     parser.add_argument('--main_dir', default='data', help='Main directory for saving recordings')
     parser.add_argument('--backup_dir', default='backup', help='Backup directory for saving recordings')
-    parser.add_argument('--recording_unit', default='minutes', help='Unit of recording time')
-    parser.add_argument('--recording_time', type=int, default=1, help='Recording time')
-    parser.add_argument('--recording_length', type=int, default=60, help='Length of each individual recording')
-    parser.add_argument('--channels_names', default='channel_1,channel_2', help='Names of the channels')
-    parser.add_argument('--channels', type=int, default=2, help='Number of audio channels to record')
-    parser.add_argument('--suffix', default='_channel_', help='Suffix to append to the filename of the recordings')
+    parser.add_argument('--recording_unit', default='minutes',
+                        choices=['seconds', 'minutes', 'hours'],
+                        help='Unit of --recording_time')
+    parser.add_argument('--recording_time', type=int, default=1,
+                        help='Total recording duration, expressed in --recording_unit')
+    parser.add_argument('--recording_length', type=int, default=60,
+                        help='Length of each individual WAV file, in seconds')
+    parser.add_argument('--channels_names', default='channel_1,channel_2',
+                        help='Comma-separated channel names (count must match --channels)')
+    parser.add_argument('--channels', type=int, default=2,
+                        help='Number of audio channels to record')
+    parser.add_argument('--suffix', default='_channel_',
+                        help='Suffix appended to the per-channel filename')
     args = parser.parse_args()
 
+    if args.list_devices:
+        list_input_devices()
+        sys.exit(0)
+
     channels_names = args.channels_names.split(',')
-
-    # Ask for directory paths
-    main_dir_input = input("Enter the directory for the main data (leave blank for default): ")
-    if not main_dir_input:
-        main_dir_input = args.main_dir
-
-    backup_dir_input = input("Enter the directory for the backup data (leave blank for default): ")
-    if not backup_dir_input:
-        backup_dir_input = args.backup_dir
+    if len(channels_names) != args.channels:
+        parser.error(
+            f"--channels={args.channels} but --channels_names has {len(channels_names)} "
+            f"name(s): {channels_names}. They must match."
+        )
 
     dir_manager = DirectoryManager(main_dir=args.main_dir, backup_dir=args.backup_dir)
-    print(dir_manager.main_save_path)  # Outputs the main directory path
-    print(dir_manager.backup_path)  # Outputs the backup directory path
+    print(f"Main save path:   {dir_manager.main_save_path}")
+    print(f"Backup save path: {dir_manager.backup_path}")
 
-    recorder = Recorder(channels=args.channels, choice=True, main_save_path=dir_manager.main_save_path, backup_path=dir_manager.backup_path, suffix=args.suffix)
+    recorder = Recorder(
+        channels=args.channels,
+        device_id=args.device_id,
+        main_save_path=dir_manager.main_save_path,
+        backup_path=dir_manager.backup_path,
+        suffix=args.suffix,
+    )
     try:
-        recorder.start_recording(args.recording_time, args.recording_length, channels_names, time_unit=args.recording_unit)
+        recorder.start_recording(args.recording_time, args.recording_length, channels_names,
+                                 time_unit=args.recording_unit)
     except Exception as e:
         print(f"An error of type {type(e).__name__} occurred: {e}")
