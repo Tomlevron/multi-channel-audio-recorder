@@ -3,7 +3,6 @@ import sys
 import wave
 import pyaudio
 import numpy as np
-import time
 import datetime
 import argparse
 
@@ -29,30 +28,40 @@ class Recorder:
     """Records a multi-channel input stream and writes each channel to its own mono WAV file.
 
     Args:
-        sample_format: PyAudio sample format. Defaults to pyaudio.paInt16.
         channels: Number of audio channels to record. Must be <= the device's maxInputChannels.
         chunk: Frames-per-buffer for the PyAudio stream read.
         device_id: Input device index. If None, the user is prompted interactively.
+        sample_rate: Sample rate in Hz. If None, uses the device's default rate.
+        bit_depth: Sample width in bits — 16, 24, or 32. Defaults to 16.
         main_save_path: Primary directory for saving WAV files.
         backup_path: Backup directory; each recording is also written here.
         suffix: Suffix appended after each channel name in the filename.
 
     Raises:
-        ValueError: If device_id is invalid or supports fewer channels than requested.
+        ValueError: If device_id is invalid, bit_depth is unsupported, or the device
+            supports fewer channels than requested.
         RuntimeError: If no input devices are present (interactive path only).
     """
-    def __init__(self, sample_format=pyaudio.paInt16, channels=2, chunk=1024, device_id=None, main_save_path=None, backup_path=None, suffix='_channel_'):
-        # Initialize
-        self.sample_format = sample_format
+
+    _BIT_DEPTH_FORMATS = {16: pyaudio.paInt16, 24: pyaudio.paInt24, 32: pyaudio.paInt32}
+
+    def __init__(self, channels=2, chunk=1024, device_id=None, sample_rate=None, bit_depth=16,
+                 main_save_path=None, backup_path=None, suffix='_channel_'):
+        if bit_depth not in self._BIT_DEPTH_FORMATS:
+            raise ValueError(
+                f"Unsupported bit_depth={bit_depth}; choose from {sorted(self._BIT_DEPTH_FORMATS)}"
+            )
+        self.sample_format = self._BIT_DEPTH_FORMATS[bit_depth]
+        self.bit_depth = bit_depth
         self.channels = channels
         self.chunk = chunk
         self.frames = [[] for _ in range(channels)]
+        self.interrupted = False
         self.p = pyaudio.PyAudio()
         if device_id is None:
             self.input_device_index = self.prompt_for_input_device()
         else:
             self.input_device_index = device_id
-        # Check that the device exists and can supply the requested channel count.
         device_info = self.get_device_info(self.input_device_index)
         max_in = int(device_info["maxInputChannels"])
         if max_in < self.channels:
@@ -61,12 +70,12 @@ class Recorder:
                 f"supports max {max_in} input channels, but {self.channels} were requested. "
                 f"Run with --list-devices to see options."
             )
-        self.fs = int(device_info["defaultSampleRate"])
+        self.fs = sample_rate if sample_rate is not None else int(device_info["defaultSampleRate"])
         print(f"Using device id={self.input_device_index} ({device_info['name']}) "
-              f"at {self.fs} Hz, {self.channels} channel(s).")
+              f"at {self.fs} Hz, {self.channels} channel(s), {self.bit_depth}-bit.")
         self.main_save_path = main_save_path
         self.backup_path = backup_path
-        self.suffix = suffix  # Added suffix
+        self.suffix = suffix
         
     def prompt_for_input_device(self):
         """List input devices and prompt the user to pick one. Returns the chosen device index."""
@@ -97,102 +106,93 @@ class Recorder:
 
 
     def record_audio(self, rec_length):
-        """Record audio for the specified length of time.
+        """Record `rec_length` seconds into self.frames (one byte-buffer list per channel).
 
-        Args:
-            rec_length (int): The length of time to record in seconds.
-
-        Raises:
-            Exception: If the number of channels is invalid.
-
+        On Ctrl+C, captures whatever was read so far, sets self.interrupted, and returns
+        without re-raising — callers should check self.interrupted to stop the outer loop.
         """
         if self.channels < 1:
-            raise Exception(f'Invalid number of channels: {self.channels}')
-        print('Recording')
-        self.frames = [[] for _ in range(self.channels)]  # Clear frames
-        stream = self.p.open(format=self.sample_format,
-                            channels=self.channels,
-                            rate=self.fs,
-                            input_device_index=self.input_device_index,
-                            frames_per_buffer=self.chunk,
-                            input=True)
+            raise ValueError(f"Invalid number of channels: {self.channels}")
+        print(f"Recording {rec_length}s...")
+        self.frames = [[] for _ in range(self.channels)]
+        sample_width = self.p.get_sample_size(self.sample_format)
+        stream = self.p.open(
+            format=self.sample_format,
+            channels=self.channels,
+            rate=self.fs,
+            input_device_index=self.input_device_index,
+            frames_per_buffer=self.chunk,
+            input=True,
+        )
+        try:
+            for _ in range(int(self.fs / self.chunk * rec_length)):
+                data = stream.read(self.chunk)
+                # De-interleave by byte stride so this works for any sample width (16/24/32).
+                frame = np.frombuffer(data, dtype=np.uint8).reshape(-1, self.channels, sample_width)
+                for j in range(self.channels):
+                    self.frames[j].append(frame[:, j, :].tobytes())
+        except KeyboardInterrupt:
+            print("\nInterrupted — flushing captured audio so far...")
+            self.interrupted = True
+        finally:
+            stream.stop_stream()
+            stream.close()
+        print("Finished recording")
 
-        for i in range(0, int(self.fs / self.chunk * rec_length)):
-            data = stream.read(self.chunk)
-            data_array = np.frombuffer(data, dtype='int16')  # Use frombuffer instead of fromstring
-            for j in range(self.channels):
-                channel = data_array[j::self.channels]
-                data_str = channel.tobytes()  # Use tobytes instead of tostring
-                self.frames[j].append(data_str)
 
-        stream.stop_stream()
-        stream.close()
-        print('Finished recording')
+    def save_wav(self, filename, frames, directory):
+        """Write a single mono WAV file under `directory` (created if missing)."""
+        os.makedirs(directory, exist_ok=True)
+        path = os.path.join(directory, filename)
+        with wave.open(path, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(self.p.get_sample_size(self.sample_format))
+            wf.setframerate(self.fs)
+            wf.writeframes(b"".join(frames))
 
-
-    def save_wav(self, filename, frames, date_as_string, time_as_string, directory_path):
-        """Save audio frames as a WAV file.
-
-        Args:
-            filename (str): The base filename for the WAV file.
-            frames (list): The audio frames to be saved.
-            date_as_string (str): The current date as a string.
-            time_as_string (str): The current time as a string.
-            directory_path (str): The directory path for saving the WAV file.
-
-        """
-        name_of_file = filename + time_as_string.replace('.', '') + '.wav'
-        directory = directory_path + date_as_string
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
-
-        complete_name = os.path.join(directory, name_of_file)
-
-        wf = wave.open(complete_name, 'wb')
-        wf.setnchannels(1)
-        wf.setsampwidth(self.p.get_sample_size(self.sample_format))
-        wf.setframerate(self.fs)
-        wf.writeframes(b''.join(frames))
-        wf.close()
-
-    def record_and_save(self, rec_length, rooms_names):
-        """Record audio and save the WAV files for each room.
-
-        Args:
-            rec_length (int): The length of time to record in seconds.
-            rooms_names (list): The names of the rooms to record.
-
-        """
-
+    def record_and_save(self, rec_length, channel_names):
+        """Record one segment and write each channel to the main + backup dirs."""
         self.record_audio(rec_length)
-        current_time = str(time.time())
-        date_today = datetime.datetime.now()
-        date_str = str(date_today.date())
+        now = datetime.datetime.now()
+        date_folder = now.strftime("%Y-%m-%d")
+        # ISO-8601-ish, ms precision, ':' avoided so the name is valid on Windows.
+        timestamp = now.strftime("%Y-%m-%dT%H-%M-%S-%f")[:-3]
+        for i, name in enumerate(channel_names):
+            filename = f"{name}{self.suffix}{timestamp}.wav"
+            for save_root in (self.main_save_path, self.backup_path):
+                self.save_wav(filename, self.frames[i], os.path.join(save_root, date_folder))
 
-        for i, name in enumerate(rooms_names):
-            self.save_wav(name +  self.suffix, self.frames[i], date_str, current_time, self.main_save_path)
-            self.save_wav(name +  self.suffix, self.frames[i], date_str, current_time, self.backup_path)
-        
-    def start_recording(self, num_rec, recording_length, rooms_names, time_unit="seconds"):
-        """Start recording audio for the specified duration and convert num_rec to the appropriate time unit.
+    def start_recording(self, num_rec, recording_length, channel_names, time_unit="seconds"):
+        """Record `num_rec` units of audio split into `recording_length`-second segments.
 
-        Args:
-            num_rec (int): The total number of recordings to perform.
-            recording_length (int): The length of each individual recording.
-            rooms_names (list): The names of the rooms to record.
-            time_unit (str): The unit of recording time (default: "seconds").
-
+        A final shorter segment is recorded if `num_rec` doesn't divide evenly, instead
+        of silently dropping the remainder.
         """
         if time_unit == "minutes":
             num_rec *= 60
         elif time_unit == "hours":
             num_rec *= 3600
 
-        num_loops = num_rec // recording_length  # Calculate the number of loops needed
-        for k in range(num_loops):
-            print('This is recording number :', k + 1)
-            self.record_and_save(rec_length=recording_length, rooms_names=rooms_names)
-        self.p.terminate()  # Terminate PyAudio session after loop
+        full_segments, remainder = divmod(num_rec, recording_length)
+        segment_lengths = [recording_length] * full_segments
+        if remainder:
+            segment_lengths.append(remainder)
+
+        if not segment_lengths:
+            print("Total recording time is 0; nothing to record.")
+            self.p.terminate()
+            return
+
+        try:
+            total = len(segment_lengths)
+            for k, length in enumerate(segment_lengths, 1):
+                print(f"Recording segment {k}/{total} ({length}s)")
+                self.record_and_save(rec_length=length, channel_names=channel_names)
+                if self.interrupted:
+                    print(f"Stopped after segment {k}/{total}.")
+                    break
+        finally:
+            self.p.terminate()
 
 class DirectoryManager:
     """Utility class for managing directory paths.
@@ -246,6 +246,10 @@ if __name__ == "__main__":
                         help='Comma-separated channel names (count must match --channels)')
     parser.add_argument('--channels', type=int, default=2,
                         help='Number of audio channels to record')
+    parser.add_argument('--sample-rate', type=int, default=None,
+                        help='Sample rate in Hz. If omitted, uses the device default.')
+    parser.add_argument('--bit-depth', type=int, default=16, choices=[16, 24, 32],
+                        help='Bit depth per sample (default 16).')
     parser.add_argument('--suffix', default='_channel_',
                         help='Suffix appended to the per-channel filename')
     args = parser.parse_args()
@@ -253,6 +257,11 @@ if __name__ == "__main__":
     if args.list_devices:
         list_input_devices()
         sys.exit(0)
+
+    if args.recording_time <= 0:
+        parser.error("--recording_time must be > 0")
+    if args.recording_length <= 0:
+        parser.error("--recording_length must be > 0")
 
     channels_names = args.channels_names.split(',')
     if len(channels_names) != args.channels:
@@ -265,15 +274,21 @@ if __name__ == "__main__":
     print(f"Main save path:   {dir_manager.main_save_path}")
     print(f"Backup save path: {dir_manager.backup_path}")
 
-    recorder = Recorder(
-        channels=args.channels,
-        device_id=args.device_id,
-        main_save_path=dir_manager.main_save_path,
-        backup_path=dir_manager.backup_path,
-        suffix=args.suffix,
-    )
     try:
+        recorder = Recorder(
+            channels=args.channels,
+            device_id=args.device_id,
+            sample_rate=args.sample_rate,
+            bit_depth=args.bit_depth,
+            main_save_path=dir_manager.main_save_path,
+            backup_path=dir_manager.backup_path,
+            suffix=args.suffix,
+        )
         recorder.start_recording(args.recording_time, args.recording_length, channels_names,
                                  time_unit=args.recording_unit)
-    except Exception as e:
-        print(f"An error of type {type(e).__name__} occurred: {e}")
+    except KeyboardInterrupt:
+        print("\nStopped by user.")
+        sys.exit(130)
+    except (ValueError, RuntimeError, OSError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
