@@ -16,30 +16,30 @@ This simple code is versatile and can be used with different recorders connected
 
 ## Requirements
 
-- Python 3.8 or above
+- Python 3.9 or above
 - [pyaudio](https://pypi.org/project/PyAudio/) ≥ 0.2.14 (ships prebuilt wheels for Windows and macOS — no C compiler needed)
 - [numpy](https://pypi.org/project/numpy/) ≥ 1.21
 
 ## Installation
-1. Clone the repository:
+
 ```shell
 git clone https://github.com/Tomlevron/multi-channel-audio-recorder.git
 cd multi-channel-audio-recorder
-```
-
-2. Install — pick one:
-
-**Option A — installs a `multi-channel-record` command you can run from anywhere:**
-```shell
 pip install .
 ```
 
-**Option B — install the dependencies only and run the script directly:**
+This installs a `multi-channel-record` console command you can invoke from anywhere. You can also run the package directly with `python -m multi_channel_audio_recorder ...`.
+
+> On Linux, PyAudio still requires the PortAudio system library first: `sudo apt install portaudio19-dev` (or equivalent). Windows and macOS users normally don't need any system packages because pyaudio 0.2.14+ ships prebuilt wheels.
+
+### Development install
+
 ```shell
-pip install -r requirements.txt
+pip install -e .[dev]
+pytest
 ```
 
-> On Linux, PyAudio still requires the PortAudio system library before pip can install it: `sudo apt install portaudio19-dev` (or equivalent). Windows and macOS users normally don't need any system packages because pyaudio 0.2.14+ ships prebuilt wheels.
+Editable mode reflects code changes immediately. The `[dev]` extra pulls in pytest for the test suite under `tests/`.
 
 ## Usage
 
@@ -49,8 +49,8 @@ pip install -r requirements.txt
 
 ```shell
 multi-channel-record --list-devices
-# or, if you used Option B above:
-python audio_recorder.py --list-devices
+# equivalently:
+python -m multi_channel_audio_recorder --list-devices
 ```
 
 Output looks like:
@@ -66,17 +66,17 @@ Note the `id` of your recorder and the number of input channels it exposes.
 multi-channel-record \
   --device-id 5 \
   --channels 4 \
-  --channels_names boom1,boom2,boom3,boom4 \
+  --channels-names boom1,boom2,boom3,boom4 \
   --sample-rate 48000 \
   --bit-depth 24 \
-  --recording_unit minutes \
-  --recording_time 2 \
-  --recording_length 30
+  --recording-unit minutes \
+  --recording-time 2 \
+  --recording-length 30
 ```
 
 Press Ctrl+C at any time — audio captured so far in the current segment is flushed to disk before the program exits.
 
-Files are named `boom1_channel_2026-05-20T19-51-19-966.wav` (ISO-8601 timestamp, millisecond precision) and placed under a date-named subfolder inside both `--main_dir` and `--backup_dir`.
+Files are named `boom1_channel_2026-05-20T19-51-19-966.wav` (ISO-8601 timestamp, millisecond precision) and placed under a date-named subfolder inside both `--main-dir` and `--backup-dir`.
 
 ### Command-line flags
 
@@ -85,15 +85,17 @@ Files are named `boom1_channel_2026-05-20T19-51-19-966.wav` (ISO-8601 timestamp,
 | `--list-devices` | Print all input devices and exit. Use this first to find your `--device-id`. |
 | `--device-id N` | Record from device N. If omitted, you will be prompted interactively. |
 | `--channels N` | Number of channels to record. Must be ≤ the device's max input channels. |
-| `--channels_names a,b,c` | Comma-separated channel names. Count must equal `--channels`. |
+| `--channels-names a,b,c` | Comma-separated channel names. Count must equal `--channels`. |
 | `--sample-rate HZ` | Sample rate in Hz (e.g. `48000`). Defaults to the device's reported rate. |
 | `--bit-depth {16,24,32}` | Sample width in bits. Defaults to 16. |
-| `--recording_unit {seconds,minutes,hours}` | Unit for `--recording_time`. Defaults to `minutes`. |
-| `--recording_time N` | Total duration in `--recording_unit`. |
-| `--recording_length N` | Length of each individual WAV file in seconds. If totals don't divide evenly, a final shorter file is recorded instead of dropping the remainder. |
-| `--main_dir DIR` | Primary save directory (default `data`). |
-| `--backup_dir DIR` | Backup directory; every file is written here too (default `backup`). |
+| `--recording-unit {seconds,minutes,hours}` | Unit for `--recording-time`. Defaults to `minutes`. |
+| `--recording-time N` | Total duration in `--recording-unit`. |
+| `--recording-length N` | Length of each individual WAV file in seconds. If totals don't divide evenly, a final shorter file is recorded instead of dropping the remainder. |
+| `--main-dir DIR` | Primary save directory (default `data`). |
+| `--backup-dir DIR` | Backup directory; every file is written here too (default `backup`). |
 | `--suffix STR` | Suffix inserted between channel name and timestamp (default `_channel_`). |
+
+> The legacy underscore-style flags (`--main_dir`, `--recording_time`, `--channels_names`, …) are still accepted for back-compatibility with older invocations.
 
 ## Recipes
 
@@ -101,31 +103,43 @@ The right `--channels` value depends on **how your device exposes itself to the 
 
 **Stereo USB recorder (Zoom H4n / H5 / consumer USB mic):**
 ```shell
-multi-channel-record --device-id <id> --channels 2 --channels_names left,right \
-  --sample-rate 48000 --bit-depth 24 --recording_unit minutes --recording_time 10
+multi-channel-record --device-id <id> --channels 2 --channels-names left,right \
+  --sample-rate 48000 --bit-depth 24 --recording-unit minutes --recording-time 10
 ```
 
 **4-channel recorder (Zoom H6 in multi-track USB mode, Tascam DR-680 mkII):**
 ```shell
 multi-channel-record --device-id <id> --channels 4 \
-  --channels_names xlr1,xlr2,xlr3,xlr4 \
-  --sample-rate 48000 --bit-depth 24 --recording_unit minutes --recording_time 30
+  --channels-names xlr1,xlr2,xlr3,xlr4 \
+  --sample-rate 48000 --bit-depth 24 --recording-unit minutes --recording-time 30
 ```
 
 **USB mixer or interface with 8+ inputs (Behringer XR18, Focusrite Scarlett 18i20, MOTU 828):**
 ```shell
 multi-channel-record --device-id <id> --channels 8 \
-  --channels_names ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8 \
-  --sample-rate 48000 --bit-depth 24 --recording_unit minutes --recording_time 60
+  --channels-names ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8 \
+  --sample-rate 48000 --bit-depth 24 --recording-unit minutes --recording-time 60
 ```
 
 If you request more channels than the device supports, you'll get a clear error telling you the maximum.
+
+## Project layout
+
+```
+src/multi_channel_audio_recorder/
+├── __init__.py     # re-exports Recorder, DirectoryManager, __version__
+├── __main__.py     # entry point for `python -m multi_channel_audio_recorder`
+├── cli.py          # argparse + main()
+├── recorder.py     # Recorder class, list_input_devices(), pure helpers
+└── paths.py        # DirectoryManager
+tests/              # pytest unit tests (no audio hardware required)
+```
 
 ## To do
 - [x] Add Code comments and docstrings
 - [x] Add installation instructions
 - [x] Explain what can be done with it
-- [ ] Add unit tests to ensure the functionality of the code.
+- [x] Add unit tests to ensure the functionality of the code.
 - [x] Add an example section demonstrating different usage scenarios
 - [ ] Incorporate logging to track the progress and errors during recording.
 - [x] Provide detailed documentation on the usage of the command-line interface.
