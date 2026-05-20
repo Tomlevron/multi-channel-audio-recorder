@@ -227,7 +227,7 @@ class DirectoryManager:
         """
         return os.path.join(self.current_directory, dir_name, '')
     
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Multi-channel audio recorder")
     parser.add_argument('--list-devices', action='store_true',
                         help='List input-capable audio devices and exit.')
@@ -292,3 +292,7 @@ if __name__ == "__main__":
     except (ValueError, RuntimeError, OSError) as e:
         print(f"Error: {e}")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

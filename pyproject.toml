@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-channel-audio-recorder"
+version = "0.2.0"
+description = "Record audio from multiple channels simultaneously via PyAudio and save each channel to its own WAV file."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+authors = [{ name = "Tom Lev-ron", email = "tomseaherb@gmail.com" }]
+keywords = ["audio", "recording", "pyaudio", "multi-channel", "wav", "field-recorder"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
+]
+dependencies = [
+    "pyaudio>=0.2.14",
+    "numpy>=1.21",
+]
+
+[project.urls]
+Repository = "https://github.com/Tomlevron/multi-channel-audio-recorder"
+
+[project.scripts]
+multi-channel-record = "audio_recorder:main"
+
+[tool.setuptools]
+py-modules = ["audio_recorder"]
